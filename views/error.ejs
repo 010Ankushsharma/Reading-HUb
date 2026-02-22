@@ -1,0 +1,28 @@
+<%- include('partials/header') %>
+<%- include('partials/navbar') %>
+
+<!-- Main Content -->
+<main class="main-content">
+    <div class="container">
+        <div class="error-page">
+            <div class="error-icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h1 class="error-title">Oops!</h1>
+            <h2 class="error-subtitle"><%= title || 'Something went wrong' %></h2>
+            <p class="error-message"><%= message || 'The page you are looking for does not exist or an error occurred.' %></p>
+            <div class="error-actions">
+                <a href="/books" class="btn btn-primary btn-lg">
+                    <i class="fas fa-home"></i>
+                    Go to Home
+                </a>
+                <a href="javascript:history.back()" class="btn btn-outline btn-lg">
+                    <i class="fas fa-arrow-left"></i>
+                    Go Back
+                </a>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('partials/footer') %>

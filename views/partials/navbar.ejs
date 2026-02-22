@@ -1,0 +1,44 @@
+<!-- Navigation Bar -->
+<nav class="navbar">
+    <div class="nav-container">
+        <!-- Logo -->
+        <a href="/books" class="nav-logo">
+            <i class="fas fa-book-open"></i>
+            <span>Reading Hub</span>
+        </a>
+
+        <!-- Navigation Links -->
+        <div class="nav-links" id="navLinks">
+            <a href="/books" class="nav-link <%= currentPath === '/books' || currentPath.startsWith('/books/') && !currentPath.includes('/new') && !currentPath.includes('/edit') ? 'active' : '' %>">
+                <i class="fas fa-home"></i>
+                <span>Home</span>
+            </a>
+            <a href="/shelves" class="nav-link <%= currentPath === '/shelves' || currentPath.startsWith('/shelves/') ? 'active' : '' %>">
+                <i class="fas fa-layer-group"></i>
+                <span>Shelves</span>
+            </a>
+            <a href="/books/new" class="nav-link <%= currentPath === '/books/new' ? 'active' : '' %>">
+                <i class="fas fa-plus-circle"></i>
+                <span>Add Book</span>
+            </a>
+        </div>
+
+        <!-- Right Side Actions -->
+        <div class="nav-actions">
+            <!-- Theme Toggle -->
+            <button class="theme-toggle" id="themeToggle" title="Toggle Dark Mode">
+                <i class="fas fa-moon"></i>
+            </button>
+
+            <!-- Mobile Menu Toggle -->
+            <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </div>
+</nav>
+
+<!-- Spacer for fixed navbar -->
+<div class="nav-spacer"></div>

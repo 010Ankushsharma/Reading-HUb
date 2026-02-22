@@ -1,0 +1,153 @@
+<!-- 
+    Reusable Shelf Form Partial
+    Used by both new.ejs and edit.ejs
+    Variables: shelf (optional), errors (array)
+-->
+
+<% 
+    // Set defaults
+    shelf = shelf || {};
+    errors = errors || [];
+    const getError = (field) => {
+        const error = errors.find(e => e.path === field || e.param === field);
+        return error ? error.msg : null;
+    };
+    
+    // Available icons
+    const icons = [
+        { value: 'book', label: 'Book' },
+        { value: 'books', label: 'Books' },
+        { value: 'bookmark', label: 'Bookmark' },
+        { value: 'heart', label: 'Heart' },
+        { value: 'star', label: 'Star' },
+        { value: 'folder', label: 'Folder' },
+        { value: 'archive', label: 'Archive' },
+        { value: 'graduation-cap', label: 'Education' },
+        { value: 'university', label: 'University' },
+        { value: 'library', label: 'Library' }
+    ];
+%>
+
+<!-- Name Field -->
+<div class="form-group">
+    <label for="name" class="form-label">
+        <i class="fas fa-tag"></i>
+        Shelf Name <span class="required">*</span>
+    </label>
+    <input 
+        type="text" 
+        id="name" 
+        name="name" 
+        class="form-input <%= getError('name') ? 'error' : '' %>"
+        placeholder="e.g., Favorites, To Read, Programming"
+        value="<%= shelf.name || '' %>"
+        required
+        maxlength="100"
+    >
+    <% if (getError('name')) { %>
+        <span class="form-error"><%= getError('name') %></span>
+    <% } %>
+</div>
+
+<!-- Description Field -->
+<div class="form-group">
+    <label for="description" class="form-label">
+        <i class="fas fa-align-left"></i>
+        Description
+    </label>
+    <textarea 
+        id="description" 
+        name="description" 
+        class="form-textarea <%= getError('description') ? 'error' : '' %>"
+        placeholder="Brief description of this collection..."
+        rows="3"
+        maxlength="500"
+    ><%= shelf.description || '' %></textarea>
+    <span class="form-hint">Maximum 500 characters</span>
+    <% if (getError('description')) { %>
+        <span class="form-error"><%= getError('description') %></span>
+    <% } %>
+</div>
+
+<!-- Color Picker -->
+<div class="form-group">
+    <label for="color" class="form-label">
+        <i class="fas fa-palette"></i>
+        Shelf Color
+    </label>
+    <div class="color-picker-wrapper">
+        <input 
+            type="color" 
+            id="color" 
+            name="color" 
+            class="color-input"
+            value="<%= shelf.color || '#6366f1' %>"
+        >
+        <input 
+            type="text" 
+            class="form-input color-text <%= getError('color') ? 'error' : '' %>"
+            value="<%= shelf.color || '#6366f1' %>"
+            maxlength="7"
+            placeholder="#6366f1"
+            onchange="document.getElementById('color').value = this.value"
+        >
+    </div>
+    <% if (getError('color')) { %>
+        <span class="form-error"><%= getError('color') %></span>
+    <% } %>
+</div>
+
+<!-- Icon Selection -->
+<div class="form-group">
+    <label class="form-label">
+        <i class="fas fa-icons"></i>
+        Shelf Icon
+    </label>
+    <div class="icon-grid">
+        <% icons.forEach(icon => { %>
+            <label class="icon-option <%= (shelf.icon || 'book') === icon.value ? 'selected' : '' %>">
+                <input 
+                    type="radio" 
+                    name="icon" 
+                    value="<%= icon.value %>"
+                    <%= (shelf.icon || 'book') === icon.value ? 'checked' : '' %>
+                >
+                <div class="icon-preview">
+                    <i class="fas fa-<%= icon.value %>"></i>
+                    <span><%= icon.label %></span>
+                </div>
+            </label>
+        <% }) %>
+    </div>
+    <% if (getError('icon')) { %>
+        <span class="form-error"><%= getError('icon') %></span>
+    <% } %>
+</div>
+
+<!-- Form Actions -->
+<div class="form-actions">
+    <a href="/shelves" class="btn btn-outline">
+        <i class="fas fa-times"></i>
+        Cancel
+    </a>
+    <button type="submit" class="btn btn-primary btn-lg">
+        <i class="fas fa-save"></i>
+        <%= shelf._id ? 'Update Shelf' : 'Create Shelf' %>
+    </button>
+</div>
+
+<script>
+    // Sync color inputs
+    document.getElementById('color').addEventListener('input', function() {
+        document.querySelector('.color-text').value = this.value;
+    });
+    
+    // Icon selection
+    document.querySelectorAll('.icon-option').forEach(option => {
+        option.addEventListener('click', function() {
+            document.querySelectorAll('.icon-option').forEach(o => o.classList.remove('selected'));
+            this.classList.add('selected');
+            this.querySelector('input').checked = true;
+        });
+    });
+</script>

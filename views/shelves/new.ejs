@@ -1,0 +1,33 @@
+<%- include('../partials/header') %>
+<%- include('../partials/navbar') %>
+
+<!-- Main Content -->
+<main class="main-content">
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="header-content">
+                <h1 class="page-title">
+                    <i class="fas fa-plus-circle"></i>
+                    Create New Shelf
+                </h1>
+                <p class="page-subtitle">
+                    Create a collection to organize your books
+                </p>
+            </div>
+            <a href="/shelves" class="btn btn-outline">
+                <i class="fas fa-arrow-left"></i>
+                Back to Shelves
+            </a>
+        </div>
+
+        <!-- Form Card -->
+        <div class="form-card">
+            <form action="/shelves" method="POST" class="shelf-form">
+                <%- include('form', { shelf: shelf, errors: errors }) %>
+            </form>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>

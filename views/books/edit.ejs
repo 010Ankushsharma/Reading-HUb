@@ -1,0 +1,39 @@
+<%- include('../partials/header') %>
+<%- include('../partials/navbar') %>
+
+<!-- Main Content -->
+<main class="main-content">
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="header-content">
+                <h1 class="page-title">
+                    <i class="fas fa-edit"></i>
+                    Edit Book
+                </h1>
+                <p class="page-subtitle">
+                    Update details for "<%= book.title %>"
+                </p>
+            </div>
+            <div class="header-actions">
+                <a href="/books/<%= book._id %>" class="btn btn-outline">
+                    <i class="fas fa-eye"></i>
+                    View Book
+                </a>
+                <a href="/books" class="btn btn-outline">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Books
+                </a>
+            </div>
+        </div>
+
+        <!-- Form Card -->
+        <div class="form-card">
+            <form action="/books/<%= book._id %>?_method=PUT" method="POST" enctype="multipart/form-data" class="book-form">
+                <%- include('form', { book: book, errors: errors, shelves: shelves, isEdit: true }) %>
+            </form>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>

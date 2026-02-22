@@ -1,0 +1,249 @@
+<!-- 
+    Reusable Book Form Partial
+    Used by both new.ejs and edit.ejs
+    Variables: book (optional), errors (array), isEdit (boolean)
+-->
+
+<% 
+    // Set defaults
+    book = book || {};
+    errors = errors || [];
+    shelves = shelves || [];
+    const getError = (field) => {
+        const error = errors.find(e => e.path === field || e.param === field);
+        return error ? error.msg : null;
+    };
+%>
+
+<!-- Title Field -->
+<div class="form-group">
+    <label for="title" class="form-label">
+        <i class="fas fa-heading"></i>
+        Title <span class="required">*</span>
+    </label>
+    <input 
+        type="text" 
+        id="title" 
+        name="title" 
+        class="form-input <%= getError('title') ? 'error' : '' %>"
+        placeholder="Enter book title"
+        value="<%= book.title || '' %>"
+        required
+        maxlength="200"
+    >
+    <% if (getError('title')) { %>
+        <span class="form-error"><%= getError('title') %></span>
+    <% } %>
+</div>
+
+<!-- Author Field -->
+<div class="form-group">
+    <label for="author" class="form-label">
+        <i class="fas fa-user"></i>
+        Author <span class="required">*</span>
+    </label>
+    <input 
+        type="text" 
+        id="author" 
+        name="author" 
+        class="form-input <%= getError('author') ? 'error' : '' %>"
+        placeholder="Enter author name"
+        value="<%= book.author || '' %>"
+        required
+        maxlength="100"
+    >
+    <% if (getError('author')) { %>
+        <span class="form-error"><%= getError('author') %></span>
+    <% } %>
+</div>
+
+<!-- Genre Field -->
+<div class="form-group">
+    <label for="genre" class="form-label">
+        <i class="fas fa-tag"></i>
+        Genre
+    </label>
+    <input 
+        type="text" 
+        id="genre" 
+        name="genre" 
+        class="form-input <%= getError('genre') ? 'error' : '' %>"
+        placeholder="e.g., Fiction, Science, History"
+        value="<%= book.genre || '' %>"
+        maxlength="50"
+        list="genre-suggestions"
+    >
+    <datalist id="genre-suggestions">
+        <option value="Fiction">
+        <option value="Non-Fiction">
+        <option value="Science">
+        <option value="Technology">
+        <option value="History">
+        <option value="Biography">
+        <option value="Business">
+        <option value="Self-Help">
+        <option value="Literature">
+        <option value="Poetry">
+        <option value="Philosophy">
+        <option value="Religion">
+        <option value="Art">
+        <option value="Music">
+        <option value="Sports">
+        <option value="Travel">
+        <option value="Cooking">
+        <option value="Health">
+        <option value="Education">
+        <option value="Reference">
+    </datalist>
+    <% if (getError('genre')) { %>
+        <span class="form-error"><%= getError('genre') %></span>
+    <% } %>
+</div>
+
+<!-- Description Field -->
+<div class="form-group">
+    <label for="description" class="form-label">
+        <i class="fas fa-align-left"></i>
+        Description
+    </label>
+    <textarea 
+        id="description" 
+        name="description" 
+        class="form-textarea <%= getError('description') ? 'error' : '' %>"
+        placeholder="Enter book description..."
+        rows="4"
+        maxlength="2000"
+    ><%= book.description || '' %></textarea>
+    <span class="form-hint">Maximum 2000 characters</span>
+    <% if (getError('description')) { %>
+        <span class="form-error"><%= getError('description') %></span>
+    <% } %>
+</div>
+
+<!-- Shelf Selection -->
+<div class="form-group">
+    <label for="shelf" class="form-label">
+        <i class="fas fa-layer-group"></i>
+        Shelf / Collection
+    </label>
+    <select 
+        id="shelf" 
+        name="shelf" 
+        class="form-input <%= getError('shelf') ? 'error' : '' %>"
+    >
+        <option value="">-- No Shelf --</option>
+        <% shelves.forEach(shelf => { %>
+            <option value="<%= shelf._id %>" <%= (book.shelf && book.shelf.toString() === shelf._id.toString()) ? 'selected' : '' %>>
+                <%= shelf.name %>
+            </option>
+        <% }) %>
+    </select>
+    <span class="form-hint">Optionally add this book to a collection</span>
+    <% if (getError('shelf')) { %>
+        <span class="form-error"><%= getError('shelf') %></span>
+    <% } %>
+</div>
+
+<!-- Cover Image Section -->
+<div class="form-section">
+    <h3 class="form-section-title">
+        <i class="fas fa-image"></i>
+        Cover Image
+    </h3>
+    
+    <!-- Cover Image URL -->
+    <div class="form-group">
+        <label for="coverImage" class="form-label">
+            Cover Image URL
+        </label>
+        <input 
+            type="url" 
+            id="coverImage" 
+            name="coverImage" 
+            class="form-input <%= getError('coverImage') ? 'error' : '' %>"
+            placeholder="https://example.com/cover-image.jpg"
+            value="<%= book.coverImage || '' %>"
+        >
+        <span class="form-hint">Or upload an image below</span>
+        <% if (getError('coverImage')) { %>
+            <span class="form-error"><%= getError('coverImage') %></span>
+        <% } %>
+    </div>
+
+    <!-- Cover Image File Upload -->
+    <div class="form-group">
+        <label for="coverImageFile" class="form-label file-label">
+            <i class="fas fa-upload"></i>
+            Upload Cover Image
+        </label>
+        <div class="file-input-wrapper">
+            <input 
+                type="file" 
+                id="coverImageFile" 
+                name="coverImageFile" 
+                class="file-input"
+                accept="image/*"
+            >
+            <div class="file-preview" id="coverPreview">
+                <% if (book.coverImage) { %>
+                    <img src="<%= book.coverImage %>" alt="Current cover" class="preview-image">
+                    <span class="preview-text">Current cover image</span>
+                <% } else { %>
+                    <i class="fas fa-image"></i>
+                    <span>Click to upload cover image</span>
+                    <small>Supported: JPG, PNG, GIF (Max 10MB)</small>
+                <% } %>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PDF File Section -->
+<div class="form-section">
+    <h3 class="form-section-title">
+        <i class="fas fa-file-pdf"></i>
+        PDF File <%= !isEdit ? '<span class="required">*</span>' : '' %>
+    </h3>
+    
+    <% if (isEdit && book.pdfFile) { %>
+        <div class="current-file">
+            <i class="fas fa-file-pdf"></i>
+            <span>Current PDF: <%= book.pdfFile %></span>
+        </div>
+    <% } %>
+
+    <div class="form-group">
+        <label for="pdfFile" class="form-label file-label">
+            <i class="fas fa-upload"></i>
+            <%= isEdit ? 'Replace PDF File' : 'Upload PDF File' %>
+        </label>
+        <div class="file-input-wrapper">
+            <input 
+                type="file" 
+                id="pdfFile" 
+                name="pdfFile" 
+                class="file-input <%= !isEdit ? 'required' : '' %>"
+                accept=".pdf,application/pdf"
+                <%= !isEdit ? 'required' : '' %>
+            >
+            <div class="file-preview" id="pdfPreview">
+                <i class="fas fa-file-pdf"></i>
+                <span>Click to <%= isEdit ? 'replace' : 'upload' %> PDF</span>
+                <small>Only PDF files accepted (Max 50MB)</small>
+            </div>
+        </div>
+        <span class="form-hint">File name will be shown after selection</span>
+    </div>
+</div>
+
+<!-- Form Actions -->
+<div class="form-actions">
+    <a href="/books" class="btn btn-outline">
+        <i class="fas fa-times"></i>
+        Cancel
+    </a>
+    <button type="submit" class="btn btn-primary btn-lg">
+        <i class="fas fa-save"></i>
+        <%= isEdit ? 'Update Book' : 'Add Book' %>
+    </button>
+</div>

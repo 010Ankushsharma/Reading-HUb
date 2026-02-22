@@ -1,0 +1,72 @@
+<!-- Footer -->
+<footer class="footer">
+    <div class="footer-container">
+        <div class="footer-content">
+            <!-- Brand -->
+            <div class="footer-brand">
+                <i class="fas fa-book-open"></i>
+                <span>Reading Hub</span>
+                <p>Your digital library for managing and reading books online.</p>
+            </div>
+
+            <!-- Quick Links -->
+            <div class="footer-links">
+                <h4>Quick Links</h4>
+                <ul>
+                    <li><a href="/books"><i class="fas fa-chevron-right"></i> All Books</a></li>
+                    <li><a href="/books/new"><i class="fas fa-chevron-right"></i> Add New Book</a></li>
+                </ul>
+            </div>
+
+            <!-- Stats -->
+            <div class="footer-stats">
+                <h4>Library Stats</h4>
+                <div class="stat-item">
+                    <i class="fas fa-book"></i>
+                    <span>Organize your collection</span>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-file-pdf"></i>
+                    <span>Read PDFs online</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Copyright -->
+        <div class="footer-bottom">
+            <p>&copy; <%= new Date().getFullYear() %> Reading Hub. Built with Node.js, Express & MongoDB.</p>
+        </div>
+    </div>
+</footer>
+
+<!-- Flash Messages Container -->
+<div class="flash-messages" id="flashMessages">
+    <% if (success_msg && success_msg.length > 0) { %>
+        <% success_msg.forEach(msg => { %>
+            <div class="flash-message success">
+                <i class="fas fa-check-circle"></i>
+                <span><%= msg %></span>
+                <button class="flash-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        <% }) %>
+    <% } %>
+    
+    <% if (error_msg && error_msg.length > 0) { %>
+        <% error_msg.forEach(msg => { %>
+            <div class="flash-message error">
+                <i class="fas fa-exclamation-circle"></i>
+                <span><%= msg %></span>
+                <button class="flash-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        <% }) %>
+    <% } %>
+</div>
+
+<!-- Scripts -->
+<script src="/js/main.js"></script>
+</body>
+</html>

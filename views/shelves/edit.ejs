@@ -1,0 +1,39 @@
+<%- include('../partials/header') %>
+<%- include('../partials/navbar') %>
+
+<!-- Main Content -->
+<main class="main-content">
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="header-content">
+                <h1 class="page-title">
+                    <i class="fas fa-edit"></i>
+                    Edit Shelf
+                </h1>
+                <p class="page-subtitle">
+                    Update "<%= shelf.name %>" collection
+                </p>
+            </div>
+            <div class="header-actions">
+                <a href="/shelves/<%= shelf._id %>" class="btn btn-outline">
+                    <i class="fas fa-eye"></i>
+                    View Shelf
+                </a>
+                <a href="/shelves" class="btn btn-outline">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Shelves
+                </a>
+            </div>
+        </div>
+
+        <!-- Form Card -->
+        <div class="form-card">
+            <form action="/shelves/<%= shelf._id %>?_method=PUT" method="POST" class="shelf-form">
+                <%- include('form', { shelf: shelf, errors: errors }) %>
+            </form>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>
