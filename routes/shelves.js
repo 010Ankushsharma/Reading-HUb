@@ -193,6 +193,13 @@ router.put('/:id', shelfValidation, async (req, res) => {
  */
 router.delete('/:id', async (req, res) => {
     try {
+        // Check delete password
+        const deletePassword = req.body.deletePassword;
+        if (deletePassword !== process.env.DELETE_PASSWORD) {
+            req.flash('error', 'Invalid delete password. Shelf was not deleted.');
+            return res.redirect('back');
+        }
+
         const shelf = await Shelf.findById(req.params.id);
         
         if (!shelf) {

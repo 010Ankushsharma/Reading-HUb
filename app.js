@@ -1,9 +1,8 @@
 /**
  * Web Reading Hub - Main Application
- * A full-stack application for managing and reading books
+ * MongoDB Atlas + GridFS (Single Connection Version)
  */
 
-// Load environment variables
 require('dotenv').config();
 
 const express = require('express');
@@ -13,46 +12,99 @@ const methodOverride = require('method-override');
 const session = require('express-session');
 const flash = require('connect-flash');
 const multer = require('multer');
-const fs = require('fs');
+const { GridFsStorage } = require('multer-gridfs-storage');
+const crypto = require('crypto');
 
-// Import routes
+// Routes
 const bookRoutes = require('./routes/books');
 const shelfRoutes = require('./routes/shelves');
 
-// Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
+// ================================
+// MongoDB Atlas Connection
+// ================================
 
-// Configure Multer for file uploads
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'uploads/');
-    },
-    filename: function (req, file, cb) {
-        // Create unique filename with timestamp
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const extension = path.extname(file.originalname);
-        cb(null, file.fieldname + '-' + uniqueSuffix + extension);
-    }
+const mongoURI = process.env.MONGO_URI;
+
+mongoose.connect(mongoURI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+})
+.then(() => {
+    console.log('✅ Connected to MongoDB Atlas successfully');
+})
+.catch((err) => {
+    console.error('❌ MongoDB Atlas connection error:', err.message);
 });
 
-// File filter to accept only PDFs and images
+// Connection Monitoring
+mongoose.connection.on('connected', () => {
+    console.log('📡 Mongoose connected to DB');
+});
+
+mongoose.connection.on('error', (err) => {
+    console.error('❌ Mongoose connection error:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+    console.log('⚠️ Mongoose disconnected');
+});
+
+// ================================
+// GridFS Setup (Using Same Connection)
+// ================================
+
+let gfs, gridfsBucket;
+
+mongoose.connection.once('open', () => {
+    gridfsBucket = new mongoose.mongo.GridFSBucket(
+        mongoose.connection.db,
+        { bucketName: 'uploads' }
+    );
+
+    gfs = gridfsBucket;
+    console.log('✅ GridFS initialized successfully');
+});
+
+// ================================
+// Multer + GridFS Storage
+// ================================
+
+const storage = new GridFsStorage({
+    db: mongoose.connection,
+    file: (req, file) => {
+        return new Promise((resolve, reject) => {
+            crypto.randomBytes(16, (err, buf) => {
+                if (err) return reject(err);
+
+                const filename =
+                    buf.toString('hex') + path.extname(file.originalname);
+
+                resolve({
+                    filename: filename,
+                    bucketName: 'uploads',
+                    metadata: {
+                        originalname: file.originalname,
+                        uploadDate: new Date(),
+                        contentType: file.mimetype,
+                    },
+                });
+            });
+        });
+    },
+});
+
+// File Filter
 const fileFilter = (req, file, cb) => {
     if (file.fieldname === 'pdfFile') {
-        // Accept only PDF files
         if (file.mimetype === 'application/pdf') {
             cb(null, true);
         } else {
             cb(new Error('Only PDF files are allowed!'), false);
         }
-    } else if (file.fieldname === 'coverImage') {
-        // Accept only image files
+    } else if (file.fieldname === 'coverImageFile') {
         if (file.mimetype.startsWith('image/')) {
             cb(null, true);
         } else {
@@ -63,53 +115,47 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-const upload = multer({ 
-    storage: storage,
-    fileFilter: fileFilter,
-    limits: {
-        fileSize: 50 * 1024 * 1024 // 50MB limit for PDFs
-    }
+const upload = multer({
+    storage,
+    fileFilter,
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
 });
 
-// Make upload middleware available to routes
+// Make available globally
 app.locals.upload = upload;
+app.locals.gfs = () => gfs;
+app.locals.gridfsBucket = () => gridfsBucket;
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/reading-hub')
-    .then(() => {
-        console.log('Connected to MongoDB successfully');
-    })
-    .catch((err) => {
-        console.error('MongoDB connection error:', err);
-        process.exit(1);
-    });
+// ================================
+// Express Setup
+// ================================
 
-// Set up view engine
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// Middleware
-app.use(express.urlencoded({ extended: true })); // Parse form data
-app.use(express.json()); // Parse JSON data
-app.use(methodOverride('_method')); // Enable PUT and DELETE via forms
-app.use(express.static(path.join(__dirname, 'public'))); // Serve static files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'))); // Serve uploaded files
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(methodOverride('_method'));
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Session middleware (required for flash messages)
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'reading-hub-secret-key-change-in-production',
-    resave: false,
-    saveUninitialized: false,
-    cookie: { 
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
-}));
+// Sessions
+app.use(
+    session({
+        secret:
+            process.env.SESSION_SECRET ||
+            'reading-hub-secret-key-change-in-production',
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 24 * 60 * 60 * 1000,
+        },
+    })
+);
 
-// Flash messages middleware
 app.use(flash());
 
-// Global variables middleware
+// Global Variables
 app.use((req, res, next) => {
     res.locals.success_msg = req.flash('success');
     res.locals.error_msg = req.flash('error');
@@ -117,43 +163,83 @@ app.use((req, res, next) => {
     next();
 });
 
+// ================================
+// GridFS File Retrieval
+// ================================
+
+app.get('/files/:filename', async (req, res) => {
+    try {
+        if (!gfs) {
+            return res
+                .status(503)
+                .json({ error: 'GridFS not initialized yet' });
+        }
+
+        const file = await mongoose.connection.db
+            .collection('uploads.files')
+            .findOne({ filename: req.params.filename });
+
+        if (!file) {
+            return res.status(404).json({ error: 'File not found' });
+        }
+
+        res.set(
+            'Content-Type',
+            file.metadata?.contentType || 'application/octet-stream'
+        );
+
+        const readStream =
+            gridfsBucket.openDownloadStreamByName(req.params.filename);
+
+        readStream.pipe(res);
+    } catch (err) {
+        console.error('Error retrieving file:', err);
+        res.status(500).json({ error: 'Error retrieving file' });
+    }
+});
+
+// ================================
 // Routes
+// ================================
+
 app.use('/books', bookRoutes);
 app.use('/shelves', shelfRoutes);
 
-// Home route - redirect to books
 app.get('/', (req, res) => {
     res.redirect('/books');
 });
 
-// 404 handler
+// 404
 app.use((req, res) => {
-    res.status(404).render('error', { 
+    res.status(404).render('error', {
         title: 'Page Not Found',
-        message: 'The page you are looking for does not exist.'
+        message: 'The page you are looking for does not exist.',
     });
 });
 
-// Error handling middleware
+// Error Handler
 app.use((err, req, res, next) => {
     console.error(err.stack);
-    
-    // Handle Multer errors
+
     if (err instanceof multer.MulterError) {
         if (err.code === 'LIMIT_FILE_SIZE') {
-            req.flash('error', 'File size too large. Maximum size is 50MB.');
+            req.flash(
+                'error',
+                'File size too large. Maximum size is 50MB.'
+            );
             return res.redirect('back');
         }
     }
-    
+
     req.flash('error', err.message || 'Something went wrong!');
     res.redirect('back');
 });
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+// ================================
+// Start Server
+// ================================
 
-module.exports = app;
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+});

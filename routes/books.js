@@ -1,28 +1,24 @@
 /**
  * Book Routes
- * Handles all CRUD operations for books
+ * Handles all CRUD operations for books with GridFS storage
  */
 const express = require('express');
 const router = express.Router();
 const path = require('path');
-const fs = require('fs');
 const { body, validationResult } = require('express-validator');
 const multer = require('multer');
+const mongoose = require('mongoose');
 const Book = require('../models/Book');
 const Shelf = require('../models/Shelf');
 
-// Configure Multer for file uploads
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'uploads/');
-    },
-    filename: function (req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const extension = path.extname(file.originalname);
-        cb(null, file.fieldname + '-' + uniqueSuffix + extension);
-    }
-});
+// Get GridFS bucket from app locals
+const getGfs = (req) => req.app.locals.gridfsBucket();
+const getGfsFiles = async (req, filename) => {
+    const conn = mongoose.connection;
+    return await conn.db.collection('uploads.files').findOne({ filename });
+};
 
+// File filter to accept only PDFs and images
 const fileFilter = (req, file, cb) => {
     if (file.fieldname === 'pdfFile') {
         if (file.mimetype === 'application/pdf') {
@@ -30,7 +26,7 @@ const fileFilter = (req, file, cb) => {
         } else {
             cb(new Error('Only PDF files are allowed!'), false);
         }
-    } else if (file.fieldname === 'coverImage') {
+    } else if (file.fieldname === 'coverImageFile') {
         if (file.mimetype.startsWith('image/')) {
             cb(null, true);
         } else {
@@ -40,14 +36,6 @@ const fileFilter = (req, file, cb) => {
         cb(null, true);
     }
 };
-
-const upload = multer({ 
-    storage: storage,
-    fileFilter: fileFilter,
-    limits: {
-        fileSize: 50 * 1024 * 1024 // 50MB limit
-    }
-});
 
 // Validation rules
 const bookValidation = [
@@ -165,26 +153,19 @@ router.get('/new', async (req, res) => {
  * POST /books - Create new book
  */
 router.post('/', 
-    upload.fields([
-        { name: 'pdfFile', maxCount: 1 },
-        { name: 'coverImageFile', maxCount: 1 }
-    ]),
+    (req, res, next) => {
+        const upload = req.app.locals.upload;
+        upload.fields([
+            { name: 'pdfFile', maxCount: 1 },
+            { name: 'coverImageFile', maxCount: 1 }
+        ])(req, res, next);
+    },
     bookValidation,
     async (req, res) => {
         try {
             // Check validation errors
             const errors = validationResult(req);
             if (!errors.isEmpty()) {
-                // Clean up uploaded files if validation fails
-                if (req.files) {
-                    Object.values(req.files).forEach(fileArray => {
-                        fileArray.forEach(file => {
-                            fs.unlink(file.path, (err) => {
-                                if (err) console.error('Error deleting file:', err);
-                            });
-                        });
-                    });
-                }
                 const shelves = await Shelf.find().sort({ name: 1 });
                 return res.render('books/new', {
                     title: 'Add New Book',
@@ -217,7 +198,7 @@ router.post('/',
 
             // Handle cover image (URL or uploaded file)
             if (req.files.coverImageFile && req.files.coverImageFile[0]) {
-                bookData.coverImage = '/uploads/' + req.files.coverImageFile[0].filename;
+                bookData.coverImage = req.files.coverImageFile[0].filename;
             } else if (req.body.coverImage) {
                 bookData.coverImage = req.body.coverImage;
             }
@@ -229,18 +210,6 @@ router.post('/',
             res.redirect('/books');
         } catch (err) {
             console.error('Error creating book:', err);
-            
-            // Clean up uploaded files on error
-            if (req.files) {
-                Object.values(req.files).forEach(fileArray => {
-                    fileArray.forEach(file => {
-                        fs.unlink(file.path, (err) => {
-                            if (err) console.error('Error deleting file:', err);
-                        });
-                    });
-                });
-            }
-            
             req.flash('error', 'Failed to add book. Please try again.');
             res.redirect('/books/new');
         }
@@ -300,10 +269,13 @@ router.get('/:id/edit', async (req, res) => {
  * PUT /books/:id - Update book
  */
 router.put('/:id',
-    upload.fields([
-        { name: 'pdfFile', maxCount: 1 },
-        { name: 'coverImageFile', maxCount: 1 }
-    ]),
+    (req, res, next) => {
+        const upload = req.app.locals.upload;
+        upload.fields([
+            { name: 'pdfFile', maxCount: 1 },
+            { name: 'coverImageFile', maxCount: 1 }
+        ])(req, res, next);
+    },
     bookValidation,
     async (req, res) => {
         try {
@@ -317,16 +289,6 @@ router.put('/:id',
             // Check validation errors
             const errors = validationResult(req);
             if (!errors.isEmpty()) {
-                // Clean up uploaded files if validation fails
-                if (req.files) {
-                    Object.values(req.files).forEach(fileArray => {
-                        fileArray.forEach(file => {
-                            fs.unlink(file.path, (err) => {
-                                if (err) console.error('Error deleting file:', err);
-                            });
-                        });
-                    });
-                }
                 const shelves = await Shelf.find().sort({ name: 1 });
                 return res.render('books/edit', {
                     title: `Edit: ${book.title}`,
@@ -345,25 +307,33 @@ router.put('/:id',
 
             // Handle cover image update
             if (req.files.coverImageFile && req.files.coverImageFile[0]) {
-                // Delete old cover if it was an uploaded file
-                if (book.coverImage && book.coverImage.startsWith('/uploads/')) {
-                    const oldCoverPath = path.join(__dirname, '..', book.coverImage);
-                    fs.unlink(oldCoverPath, (err) => {
-                        if (err) console.error('Error deleting old cover:', err);
-                    });
+                // Delete old cover from GridFS if exists
+                if (book.coverImage && !book.coverImage.startsWith('http')) {
+                    try {
+                        const oldFile = await getGfsFiles(req, book.coverImage);
+                        if (oldFile) {
+                            await getGfs(req).delete(oldFile._id);
+                        }
+                    } catch (err) {
+                        console.error('Error deleting old cover:', err);
+                    }
                 }
-                book.coverImage = '/uploads/' + req.files.coverImageFile[0].filename;
+                book.coverImage = req.files.coverImageFile[0].filename;
             } else if (req.body.coverImage) {
                 book.coverImage = req.body.coverImage;
             }
 
             // Handle PDF file update
             if (req.files.pdfFile && req.files.pdfFile[0]) {
-                // Delete old PDF
-                const oldPdfPath = path.join(__dirname, '..', 'uploads', book.pdfFile);
-                fs.unlink(oldPdfPath, (err) => {
-                    if (err) console.error('Error deleting old PDF:', err);
-                });
+                // Delete old PDF from GridFS
+                try {
+                    const oldFile = await getGfsFiles(req, book.pdfFile);
+                    if (oldFile) {
+                        await getGfs(req).delete(oldFile._id);
+                    }
+                } catch (err) {
+                    console.error('Error deleting old PDF:', err);
+                }
                 book.pdfFile = req.files.pdfFile[0].filename;
             }
 
@@ -373,18 +343,6 @@ router.put('/:id',
             res.redirect(`/books/${book._id}`);
         } catch (err) {
             console.error('Error updating book:', err);
-            
-            // Clean up uploaded files on error
-            if (req.files) {
-                Object.values(req.files).forEach(fileArray => {
-                    fileArray.forEach(file => {
-                        fs.unlink(file.path, (err) => {
-                            if (err) console.error('Error deleting file:', err);
-                        });
-                    });
-                });
-            }
-            
             req.flash('error', 'Failed to update book. Please try again.');
             res.redirect(`/books/${req.params.id}/edit`);
         }
@@ -396,6 +354,13 @@ router.put('/:id',
  */
 router.delete('/:id', async (req, res) => {
     try {
+        // Check delete password
+        const deletePassword = req.body.deletePassword;
+        if (deletePassword !== process.env.DELETE_PASSWORD) {
+            req.flash('error', 'Invalid delete password. Book was not deleted.');
+            return res.redirect('back');
+        }
+
         const book = await Book.findById(req.params.id);
         
         if (!book) {
@@ -403,18 +368,26 @@ router.delete('/:id', async (req, res) => {
             return res.redirect('/books');
         }
 
-        // Delete associated PDF file
-        const pdfPath = path.join(__dirname, '..', 'uploads', book.pdfFile);
-        fs.unlink(pdfPath, (err) => {
-            if (err) console.error('Error deleting PDF file:', err);
-        });
+        // Delete associated PDF file from GridFS
+        try {
+            const pdfFile = await getGfsFiles(req, book.pdfFile);
+            if (pdfFile) {
+                await getGfs(req).delete(pdfFile._id);
+            }
+        } catch (err) {
+            console.error('Error deleting PDF from GridFS:', err);
+        }
 
-        // Delete associated cover image if it was uploaded
-        if (book.coverImage && book.coverImage.startsWith('/uploads/')) {
-            const coverPath = path.join(__dirname, '..', book.coverImage);
-            fs.unlink(coverPath, (err) => {
-                if (err) console.error('Error deleting cover image:', err);
-            });
+        // Delete associated cover image from GridFS if it's not a URL
+        if (book.coverImage && !book.coverImage.startsWith('http')) {
+            try {
+                const coverFile = await getGfsFiles(req, book.coverImage);
+                if (coverFile) {
+                    await getGfs(req).delete(coverFile._id);
+                }
+            } catch (err) {
+                console.error('Error deleting cover from GridFS:', err);
+            }
         }
 
         // Delete book from database
@@ -445,21 +418,21 @@ router.get('/:id/download', async (req, res) => {
         book.downloadCount += 1;
         await book.save();
 
-        const pdfPath = path.join(__dirname, '..', 'uploads', book.pdfFile);
+        // Get file from GridFS
+        const file = await getGfsFiles(req, book.pdfFile);
         
-        // Check if file exists
-        if (!fs.existsSync(pdfPath)) {
+        if (!file) {
             req.flash('error', 'PDF file not found');
             return res.redirect(`/books/${book._id}`);
         }
 
-        // Send file for download
-        res.download(pdfPath, `${book.title}.pdf`, (err) => {
-            if (err) {
-                console.error('Error downloading file:', err);
-                req.flash('error', 'Failed to download file');
-            }
-        });
+        // Set headers for download
+        res.set('Content-Type', file.metadata.contentType || 'application/pdf');
+        res.set('Content-Disposition', `attachment; filename="${book.title}.pdf"`);
+        
+        // Create read stream and pipe to response
+        const readStream = getGfs(req).openDownloadStreamByName(book.pdfFile);
+        readStream.pipe(res);
     } catch (err) {
         console.error('Error downloading book:', err);
         req.flash('error', 'Failed to download book.');

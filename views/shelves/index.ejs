@@ -47,11 +47,9 @@
                             <a href="/shelves/<%= shelf._id %>/edit" class="btn btn-outline btn-sm" title="Edit Shelf">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <form action="/shelves/<%= shelf._id %>?_method=DELETE" method="POST" class="delete-form" onsubmit="return confirm('Are you sure you want to delete this shelf? Books will not be deleted, only removed from this shelf.');">
-                                <button type="submit" class="btn btn-danger btn-sm" title="Delete Shelf">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </form>
+                            <button type="button" class="btn btn-danger btn-sm" title="Delete Shelf" onclick="showDeleteModal('<%= shelf._id %>', 'shelf')">
+                                <i class="fas fa-trash"></i>
+                            </button>
                         </div>
                     </article>
                 <% }) %>
@@ -72,5 +70,59 @@
         <% } %>
     </div>
 </main>
+
+<!-- Delete Password Modal -->
+<div id="deleteModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-lock"></i> Delete Protection</h3>
+            <button type="button" class="modal-close" onclick="closeDeleteModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Please enter the delete password to proceed:</p>
+            <form id="deleteForm" method="POST">
+                <input type="hidden" name="_method" value="DELETE">
+                <div class="form-group">
+                    <input 
+                        type="password" 
+                        name="deletePassword" 
+                        class="form-input" 
+                        placeholder="Enter delete password"
+                        required
+                        autofocus
+                    >
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-outline" onclick="closeDeleteModal()">Cancel</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showDeleteModal(id, type) {
+        const modal = document.getElementById('deleteModal');
+        const form = document.getElementById('deleteForm');
+        form.action = type === 'book' ? `/books/${id}?_method=DELETE` : `/shelves/${id}?_method=DELETE`;
+        modal.style.display = 'flex';
+    }
+
+    function closeDeleteModal() {
+        const modal = document.getElementById('deleteModal');
+        modal.style.display = 'none';
+    }
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        const modal = document.getElementById('deleteModal');
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    }
+</script>
 
 <%- include('../partials/footer') %>
