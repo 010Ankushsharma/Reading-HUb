@@ -2,7 +2,7 @@ services:
   - type: web
     name: reading-hub
     runtime: node
-    buildCommand: npm install --legacy-peer-deps
+    buildCommand: rm -rf node_modules package-lock.json && npm install --legacy-peer-deps
     startCommand: npm start
     envVars:
       - key: NODE_ENV
